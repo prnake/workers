@@ -162,7 +162,7 @@ export default {
         });
 
         return new Response(readable, {
-          status: !fullContent ? 500 : 200,
+          status: !!fullContent ? 500 : 200,
           headers: responseHeaders,
         });
       }

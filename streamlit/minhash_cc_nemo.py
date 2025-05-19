@@ -156,7 +156,7 @@ class MinHash:
         return np.sum(self.hashvalues == other.hashvalues) / self.num_perm
 
 def minhash(text, num_perm=260, gram=24, seed=42):
-    m = MinHash(num_perm=num_perm, seed=seed, hashfunc=lambda x: mmh3.hash(x, seed=seed, signed=False))
+    m = MinHash(num_perm=num_perm, seed=seed, hashfunc=lambda x: mmh3_hash_py(x, seed=seed, signed=False))
     grams = ngrams(text, n=gram)
     if not grams:
         # Only return empty signature

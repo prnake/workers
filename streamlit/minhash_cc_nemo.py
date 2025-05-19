@@ -1,5 +1,4 @@
 import streamlit as st
-from datasketch import MinHash
 import mmh3
 
 import re
@@ -43,8 +42,40 @@ def ngrams(text, n=24):
         return set()
     return [text[i:i + n] for i in range(len(text) - n + 1)]
 
+class MinHash:
+    def __init__(self, num_perm=260, seed=42, hashfunc=None):
+        self.num_perm = num_perm
+        self.seed = seed
+        self.hashfunc = hashfunc or (lambda x: mmh3.hash(x, seed=seed, signed=False))
+        self.hashvalues = np.ones(num_perm, dtype=np.uint64) * np.uint64((1 << 32) - 1)
+        self.permutations = self._get_permutation_functions(num_perm, seed)
+        
+    def _get_permutation_functions(self, num_perm, seed):
+        rng = np.random.RandomState(seed)
+        mersenne_prime = np.uint64((1 << 61) - 1)
+        max_hash = np.uint64((1 << 32) - 1)
+        
+        return np.array([
+            (rng.randint(1, mersenne_prime, dtype=np.uint64), 
+             rng.randint(0, mersenne_prime, dtype=np.uint64))
+            for _ in range(num_perm)
+        ], dtype=np.uint64).T
+        
+    def update(self, b):
+        hv = self.hashfunc(b)
+        a, b = self.permutations
+        phv = np.bitwise_and(
+            ((hv * a + b) % np.uint64((1 << 61) - 1)),
+            np.uint64((1 << 32) - 1)
+        )
+        self.hashvalues = np.minimum(self.hashvalues, phv)
+        
+    def jaccard(self, other):
+        if other.num_perm != self.num_perm:
+            raise ValueError("Cannot compare MinHash with different num_perm")
+        return np.sum(self.hashvalues == other.hashvalues) / self.num_perm
+
 def minhash(text, num_perm=260, gram=24, seed=42):
-    # Note! mmh3.hash returns int type
     m = MinHash(num_perm=num_perm, seed=seed, hashfunc=lambda x: mmh3.hash(x, seed=seed, signed=False))
     grams = ngrams(text, n=gram)
     if not grams:
@@ -53,8 +84,6 @@ def minhash(text, num_perm=260, gram=24, seed=42):
     for g in grams:
         m.update(g.encode("utf-8"))
     return m
-
-
 
 def mmh3_hash32(data):
     def get_hash_func():
@@ -233,3 +262,4 @@ if st.button("Calculate MinHash Jaccard similarity"):
             # Visualization of band hits
             progress_bar = st.progress(0)
             progress_bar.progress(hit_ratio)
+

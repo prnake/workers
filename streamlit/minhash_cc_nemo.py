@@ -166,14 +166,7 @@ def minhash(text, num_perm=260, gram=24, seed=42):
     return m
 
 def mmh3_hash32(data):
-    def get_hash_func():
-        if "hash_func" not in globals():
-            from mmh3 import hash as mmh3_hash
-            globals()["hash_func"] = mmh3_hash
-        return globals()["hash_func"]
-
-    hash = get_hash_func()
-    return hash(data, signed=False)
+    return mmh3_hash_py(data, signed=False)
 
 def sha1_hash32(data):
     return struct.unpack("<I", hashlib.sha1(data).digest()[:4])[0]

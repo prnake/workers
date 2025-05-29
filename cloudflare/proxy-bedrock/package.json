@@ -1,0 +1,17 @@
+{
+  "name": "bedrock-proxy",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "rollup index.js --format es -p @rollup/plugin-node-resolve -o worker.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@rollup/plugin-node-resolve": "^15.3.1",
+    "aws4fetch": "^1.0.20",
+    "rollup": "^4.41.1"
+  }
+}

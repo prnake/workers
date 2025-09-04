@@ -13,6 +13,7 @@ const MODEL_MAPPING = {
 	"claude-3-7-sonnet-20250219": "anthropic.claude-3-7-sonnet-20250219-v1:0",
 	"claude-sonnet-4-20250514":   "anthropic.claude-sonnet-4-20250514-v1:0",
 	"claude-opus-4-20250514":     "anthropic.claude-opus-4-20250514-v1:0",
+  "claude-opus-4-1-20250805":   "anthropic.claude-opus-4-1-20250805-v1:0",
 };
 
 addEventListener("fetch", (event) => {
@@ -57,11 +58,14 @@ const handleRequest = async (request) => {
     deployName = "apac." + deployName;
   }
 
+  const isStreaming = body.stream === true;
   const aws = new AwsClient({ accessKeyId, secretAccessKey, service: "bedrock" });
-  const fetchAPI = `https://bedrock-runtime.${region}.amazonaws.com/model/${deployName}/invoke`;
-
+  const fetchAPI = isStreaming ? `https://bedrock-runtime.${region}.amazonaws.com/model/${deployName}/invoke-with-response-stream` : `https://bedrock-runtime.${region}.amazonaws.com/model/${deployName}/invoke`;
+  
   delete body["model"];
   delete body["n"];
+  delete body["stream"];
+  delete body["stream_options"];
   
 
   const requestPayload = {
@@ -75,14 +79,11 @@ const handleRequest = async (request) => {
   //   },
   // });
 
-  // Check if streaming is requested
-  const isStreaming = body.stream === true;
-
   let response = await aws.fetch(fetchAPI, {
     method: "POST",
     headers: { 
       "Content-Type": "application/json",
-      ...(isStreaming && { "Accept": "text/event-stream" })
+      // ...(isStreaming && { "Accept": "text/event-stream" })
     },
     body: JSON.stringify(requestPayload),
   });

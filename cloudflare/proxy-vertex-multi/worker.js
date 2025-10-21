@@ -1,9 +1,47 @@
+const MODELS_MAP = {
+    "claude-3-sonnet-20240229": "claude-3-sonnet@20240229",
+    "claude-3-opus-20240229": "claude-3-opus@20240229",
+    "claude-3-haiku-20240307": "claude-3-haiku@20240307",
+    "claude-3-5-sonnet-20240620": "claude-3-5-sonnet@20240620",
+    "claude-3-5-sonnet-20241022": "claude-3-5-sonnet-v2@20241022",
+    "claude-3-7-sonnet-20250219": "claude-3-7-sonnet@20250219",
+    "claude-sonnet-4-20250514": "claude-sonnet-4@20250514",
+    "claude-opus-4-20250514": "claude-opus-4@20250514",
+    "claude-opus-4-1-20250805": "claude-opus-4-1@20250805",
+    "claude-sonnet-4-5-20250929": "claude-sonnet-4-5@20250929",
+    "claude-haiku-4-5-20251001": "claude-haiku-4-5@20251001"
+};
+
 const MODELS = {
+    "vertex:claude-haiku-4-5-20251001": {
+        vertexName: "claude-haiku-4-5@20251001",
+        region: "global",
+    },
+    "claude-haiku-4-5-20251001": {
+        vertexName: "claude-haiku-4-5@20251001",
+        region: "global",
+    },
+    "vertex:claude-sonnet-4-5-20250929": {
+        vertexName: "claude-sonnet-4-5@20250929",
+        region: "us-east5",
+    },
+    "claude-sonnet-4-5-20250929": {
+        vertexName: "claude-sonnet-4-5@20250929",
+        region: "us-east5",
+    },
     "vertex:claude-sonnet-4-20250514": {
         vertexName: "claude-sonnet-4@20250514",
         region: "us-east5",
     },
+    "claude-sonnet-4-20250514": {
+        vertexName: "claude-sonnet-4@20250514",
+        region: "us-east5",
+    },
     "vertex:claude-3-7-sonnet-20250219": {
+        vertexName: "claude-3-7-sonnet@20250219",
+        region: "us-east5",
+    },
+    "claude-3-7-sonnet-20250219": {
         vertexName: "claude-3-7-sonnet@20250219",
         region: "us-east5",
     }
@@ -48,7 +86,7 @@ async function handleRequest(request) {
         apiKey = apiKey_and_settings;
     }
 
-    if (!API_KEY || API_KEY !== apiKey) {
+    if ((!API_KEY || API_KEY !== apiKey) && (!API_KEY_2 || API_KEY_2 !== apiKey) && (!API_KEY_3 || API_KEY_3 !== apiKey)) {
         return createErrorResponse(401, "authentication_error", "invalid x-api-key");
     }
 
@@ -79,7 +117,7 @@ async function handleRequest(request) {
             case "/v1/chat/completions":
             case "/messages":
             default:
-                return handleMessagesEndpoint(request, token, PROJECT, apiRegion);
+                return handleMessagesEndpoint(request, token, PROJECT, apiRegion, apiKey);
                 // return createErrorResponse(404, "not_found_error", "Not Found");
         }
     } catch (error) {
@@ -88,7 +126,7 @@ async function handleRequest(request) {
     }
 }
  
-async function handleMessagesEndpoint(request, api_token, project, region) {
+async function handleMessagesEndpoint(request, api_token, project, region, apiKey) {
     const anthropicVersion = request.headers.get('anthropic-version') || '2023-06-01';
     let anthropicBeta = request.headers.get('anthropic-beta') || '';
     if (anthropicVersion && anthropicVersion !== '2023-06-01') {
@@ -105,10 +143,20 @@ async function handleMessagesEndpoint(request, api_token, project, region) {
     delete payload["n"]
     payload.anthropic_version = "vertex-2023-10-16";
 
-    if (!payload.model) {
-        return createErrorResponse(400, "invalid_request_error", "Missing model in the request payload.");
-    } else if (!MODELS[payload.model]) {
-        return createErrorResponse(400, "invalid_request_error", `Model \`${payload.model}\` not found.`);
+    const is_count_token = payload.count_token || false;
+    delete payload.count_token;
+
+    if (is_count_token) {
+
+    } else {
+        if (apiKey === API_KEY_3) {
+            return createErrorResponse(400, "invalid_request_error", "Missing key in the request payload.");
+        }
+        else if (!payload.model) {
+            return createErrorResponse(400, "invalid_request_error", "Missing model in the request payload.");
+        } else if (!MODELS[payload.model]) {
+            return createErrorResponse(400, "invalid_request_error", `Model \`${payload.model}\` not found.`);
+        }
     }
 
     if (payload.anthropic_beta) {
@@ -123,8 +171,15 @@ async function handleMessagesEndpoint(request, api_token, project, region) {
     if (!region) {
         region = model.region;
     }
-    const url = `https://${region}-aiplatform.googleapis.com/v1/projects/${project}/locations/${model.region}/publishers/anthropic/models/${model.vertexName}:streamRawPredict`;
-    delete payload.model;
+
+    let url = "";
+    if (is_count_token) {
+        url = `https://${region}-aiplatform.googleapis.com/v1/projects/${project}/locations/${region}/publishers/anthropic/models/count-tokens:rawPredict`;
+        payload.model = MODELS_MAP[payload.model] || payload.model;
+    } else {
+        url = `https://${region}-aiplatform.googleapis.com/v1/projects/${project}/locations/${region}/publishers/anthropic/models/${model.vertexName}:streamRawPredict`;
+        delete payload.model;
+    }
 
     let response, contentType
     try {

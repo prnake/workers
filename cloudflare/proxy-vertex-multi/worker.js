@@ -167,6 +167,8 @@ async function handleMessagesEndpoint(request, api_token, project, region, apiKe
     }
 
     const stream = payload.stream || false;
+    // delete payload.stream;
+    delete payload.stream_options;
     const model = MODELS[payload.model];
     if (!region) {
         region = model.region;
